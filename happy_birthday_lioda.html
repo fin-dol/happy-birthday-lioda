@@ -1,72 +1,732 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Happy Birthday Lioda! 🎉</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Happy Birthday Lioda!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-    body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-      font-family: 'Georgia', serif;
-      text-align: center;
-      padding: 2rem;
-    }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    .card {
-      background: white;
-      border-radius: 20px;
-      padding: 3rem 4rem;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-      max-width: 500px;
-    }
+  body {
+    background: #0a0a2e;
+    overflow: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Press Start 2P', monospace;
+  }
 
-    .emoji {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-    }
-
-    h1 {
-      font-size: 2.5rem;
-      color: #e05c8a;
-      margin-bottom: 0.5rem;
-    }
-
-    .name {
-      font-size: 3rem;
-      color: #f6a623;
-      font-style: italic;
-      margin-bottom: 1.5rem;
-    }
-
-    p {
-      font-size: 1.1rem;
-      color: #666;
-      line-height: 1.7;
-    }
-
-    .footer-emoji {
-      font-size: 2rem;
-      margin-top: 1.5rem;
-    }
-  </style>
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+</style>
 </head>
 <body>
-  <div class="card">
-    <div class="emoji">🎂</div>
-    <h1>Happy Birthday</h1>
-    <div class="name">Lioda!</div>
-    <p>Wishing you a wonderful day filled with joy, laughter, and all the things you love. 🎉</p>
-    <div class="footer-emoji">🥳 🎈 🎁</div>
-  </div>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W, H, scale;
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  W = canvas.width;
+  H = canvas.height;
+  scale = Math.min(W / 360, H / 640);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- COLORS ---
+const COL = {
+  sky: ['#0a0a2e','#141452','#1e1e6e'],
+  stars: '#ffffff',
+  neon: ['#ff00ff','#00ffff','#ff3366','#ffff00','#00ff99'],
+  building: ['#0d0d3b','#111148','#161655','#1a1a62'],
+  window: ['#ffff66','#ff9933','#66ffff','#ff66ff'],
+  skin: '#c68642',
+  hair: '#1a1a1a',
+  jacket: '#111111',
+  jacketHL: '#222222',
+  shirt: '#ff3366',
+  pants: '#222244',
+  shoes: '#111111',
+  minion: '#ffe135',
+  minionEye: '#ffffff',
+  minionPupil: '#3b2507',
+  minionGoggles: '#888888',
+  minionPants: '#4169e1',
+};
+
+// --- STARS ---
+const stars = Array.from({length: 80}, () => ({
+  x: Math.random(), y: Math.random() * 0.4, s: Math.random() * 2 + 1, b: Math.random()
+}));
+
+// --- BUILDINGS ---
+const buildings = [];
+for (let i = 0; i < 14; i++) {
+  buildings.push({
+    x: i / 14 - 0.03,
+    w: 0.06 + Math.random() * 0.06,
+    h: 0.15 + Math.random() * 0.25,
+    color: COL.building[Math.floor(Math.random() * COL.building.length)],
+    windows: Array.from({length: 8 + Math.floor(Math.random()*12)}, () => ({
+      rx: Math.random(), ry: Math.random(),
+      color: COL.window[Math.floor(Math.random() * COL.window.length)],
+      on: Math.random() > 0.3,
+      blink: Math.random()
+    })),
+    hasSign: Math.random() > 0.5,
+    signColor: COL.neon[Math.floor(Math.random() * COL.neon.length)],
+    antenna: Math.random() > 0.6
+  });
+}
+
+// --- NEON SIGNS ---
+const neonSigns = [
+  { x: 0.08, y: 0.38, text: 'GAME', color: '#ff00ff' },
+  { x: 0.72, y: 0.32, text: 'KARAOKE', color: '#00ffff' },
+  { x: 0.4, y: 0.28, text: 'TOKYO', color: '#ff3366' },
+];
+
+// --- CONFETTI ---
+const confetti = Array.from({length: 60}, () => ({
+  x: Math.random(), y: Math.random(), vx: (Math.random()-0.5)*0.002,
+  vy: Math.random()*0.003+0.001, size: Math.random()*4+2,
+  color: COL.neon[Math.floor(Math.random()*COL.neon.length)],
+  rot: Math.random() * Math.PI * 2, rotV: (Math.random()-0.5)*0.1
+}));
+
+// --- GIRL CHARACTER ---
+const girl = {
+  x: 0.5, y: 0.72,
+  dance: -1,
+  danceFrame: 0,
+  danceTimer: 0,
+  danceDuration: 120,
+  bounceT: 0
+};
+
+// --- MINIONS ---
+const minions = [
+  { x: 0.12, y: 0.78, dir: 1, jumpT: 0 },
+  { x: 0.28, y: 0.80, dir: 1, jumpT: 30 },
+  { x: 0.72, y: 0.80, dir: -1, jumpT: 15 },
+  { x: 0.88, y: 0.78, dir: -1, jumpT: 45 },
+];
+
+// --- SPEECH BUBBLES ---
+const speeches = [
+  "HAPPY BIRTHDAY!",
+  "BELLO!",
+  "PARA TU!",
+  "BANANA!",
+];
+
+let titleGlow = 0;
+let frameCount = 0;
+
+// --- TOUCH HANDLING ---
+canvas.addEventListener('click', handleTap);
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  handleTap({ clientX: t.clientX, clientY: t.clientY });
+}, { passive: false });
+
+function handleTap(e) {
+  const gx = girl.x * W;
+  const gy = girl.y * H;
+  const dx = e.clientX - gx;
+  const dy = e.clientY - gy;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 70 * scale) {
+    girl.dance = (girl.dance + 1) % 5;
+    girl.danceFrame = 0;
+    girl.danceTimer = 0;
+  }
+}
+
+// --- DRAW HELPERS ---
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+function drawSky() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+  grad.addColorStop(0, COL.sky[0]);
+  grad.addColorStop(0.5, COL.sky[1]);
+  grad.addColorStop(1, COL.sky[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawStars() {
+  stars.forEach(s => {
+    const twinkle = Math.sin(frameCount * 0.05 + s.b * 10) * 0.5 + 0.5;
+    ctx.globalAlpha = twinkle * 0.8 + 0.2;
+    ctx.fillStyle = COL.stars;
+    const sz = s.s * scale;
+    const sx = s.x * W, sy = s.y * H;
+    ctx.fillRect(sx, sy - sz, sz, sz);
+    ctx.fillRect(sx - sz, sy, sz, sz);
+    ctx.fillRect(sx, sy, sz, sz);
+    ctx.fillRect(sx + sz, sy, sz, sz);
+    ctx.fillRect(sx, sy + sz, sz, sz);
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawTokyoTower() {
+  const tx = W * 0.55;
+  const ty = H * 0.55;
+  const s = scale;
+
+  ctx.fillStyle = '#0f0f3a';
+  ctx.beginPath();
+  ctx.moveTo(tx - 15*s, ty);
+  ctx.lineTo(tx - 4*s, ty - 120*s);
+  ctx.lineTo(tx + 4*s, ty - 120*s);
+  ctx.lineTo(tx + 15*s, ty);
+  ctx.fill();
+
+  ctx.fillRect(tx - 1*s, ty - 140*s, 2*s, 20*s);
+
+  ctx.fillStyle = '#1a1a50';
+  ctx.fillRect(tx - 10*s, ty - 80*s, 20*s, 4*s);
+  ctx.fillRect(tx - 7*s, ty - 50*s, 14*s, 3*s);
+
+  const blink = Math.sin(frameCount * 0.1) > 0;
+  ctx.fillStyle = blink ? '#ff3333' : '#661111';
+  ctx.fillRect(tx - 2*s, ty - 142*s, 4*s, 3*s);
+}
+
+function drawBuildings() {
+  buildings.forEach(b => {
+    const bx = b.x * W;
+    const bw = b.w * W;
+    const bh = b.h * H;
+    const by = H * 0.55 - bh;
+
+    ctx.fillStyle = b.color;
+    ctx.fillRect(bx, by, bw, bh + H * 0.05);
+
+    if (b.antenna) {
+      ctx.fillStyle = '#333366';
+      ctx.fillRect(bx + bw/2 - 1*scale, by - 15*scale, 2*scale, 15*scale);
+      const blinkOn = Math.sin(frameCount * 0.08) > 0;
+      ctx.fillStyle = blinkOn ? '#ff0000' : '#660000';
+      ctx.fillRect(bx + bw/2 - 2*scale, by - 17*scale, 4*scale, 3*scale);
+    }
+
+    b.windows.forEach(win => {
+      if (!win.on) return;
+      const flicker = Math.sin(frameCount * 0.02 + win.blink * 20) > -0.8;
+      if (!flicker) return;
+      const wx = bx + win.rx * (bw - 6*scale) + 2*scale;
+      const wy = by + win.ry * (bh - 6*scale) + 2*scale;
+      ctx.fillStyle = win.color;
+      ctx.globalAlpha = 0.7;
+      ctx.fillRect(wx, wy, 4*scale, 4*scale);
+      ctx.globalAlpha = 1;
+    });
+
+    if (b.hasSign) {
+      const glow = Math.sin(frameCount * 0.06 + bx) * 0.3 + 0.7;
+      ctx.globalAlpha = glow;
+      ctx.fillStyle = b.signColor;
+      ctx.fillRect(bx + 2*scale, by + bh * 0.3, bw - 4*scale, 5*scale);
+      ctx.globalAlpha = 1;
+    }
+  });
+}
+
+function drawNeonSigns() {
+  ctx.font = `${Math.floor(8 * scale)}px 'Press Start 2P', monospace`;
+  neonSigns.forEach((s, i) => {
+    const glow = Math.sin(frameCount * 0.07 + i * 2) * 0.4 + 0.6;
+    ctx.globalAlpha = glow;
+    ctx.fillStyle = s.color;
+    ctx.shadowColor = s.color;
+    ctx.shadowBlur = 15 * scale;
+    ctx.fillText(s.text, s.x * W, s.y * H);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  });
+}
+
+function drawGround() {
+  const gy = H * 0.55;
+  const grad = ctx.createLinearGradient(0, gy, 0, H);
+  grad.addColorStop(0, '#1a1a3e');
+  grad.addColorStop(0.3, '#141432');
+  grad.addColorStop(1, '#0a0a20');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, gy, W, H - gy);
+
+  // Retro grid
+  ctx.strokeStyle = '#222255';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 12; i++) {
+    const ly = gy + (H - gy) * (i / 12);
+    ctx.beginPath();
+    ctx.moveTo(0, ly);
+    ctx.lineTo(W, ly);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 16; i++) {
+    const lx = (i / 16) * W;
+    ctx.beginPath();
+    ctx.moveTo(lx, gy);
+    ctx.lineTo(W/2 + (lx - W/2) * 3, H);
+    ctx.stroke();
+  }
+
+  // Crosswalk
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 0.15;
+  for (let i = 0; i < 8; i++) {
+    ctx.fillRect(W * 0.3 + i * 12 * scale, gy, 8 * scale, 30 * scale);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- GIRL PIXEL ART ---
+function drawGirl() {
+  const s = scale * 1.8;
+  const p = 3 * s;
+  let gx = girl.x * W;
+  let gy = girl.y * H;
+
+  const idle = girl.dance === -1;
+  const d = girl.dance;
+  const f = girl.danceFrame;
+
+  girl.bounceT += 0.05;
+  let bounce = idle ? Math.sin(girl.bounceT) * 2 * s : 0;
+
+  let bodyTilt = 0, armLAngle = 0, armRAngle = 0;
+  let legSpread = 0, hipShift = 0, headTilt = 0;
+  let jumpOffset = 0;
+
+  if (!idle) {
+    const t = f / 30;
+    switch(d) {
+      case 0: // Disco
+        hipShift = Math.sin(t * 4) * 6 * s;
+        armLAngle = Math.sin(t * 4) * 0.8;
+        armRAngle = Math.sin(t * 4 + Math.PI) * 0.8;
+        legSpread = Math.abs(Math.sin(t * 2)) * 4 * s;
+        headTilt = Math.sin(t * 4) * 0.15;
+        break;
+      case 1: // Jump
+        jumpOffset = -Math.abs(Math.sin(t * 3)) * 20 * s;
+        armLAngle = -Math.sin(t * 3) * 1.2;
+        armRAngle = -Math.sin(t * 3) * 1.2;
+        legSpread = Math.abs(Math.sin(t * 3)) * 6 * s;
+        break;
+      case 2: // Spin
+        hipShift = Math.sin(t * 5) * 10 * s;
+        bodyTilt = Math.sin(t * 5) * 0.2;
+        armLAngle = t * 3;
+        armRAngle = -t * 3;
+        break;
+      case 3: // Robot
+        const snap = Math.floor(t * 4) % 4;
+        hipShift = [0, 8*s, 0, -8*s][snap];
+        armLAngle = [0, -1, 0.5, -0.5][snap];
+        armRAngle = [0.5, 0, -1, 0][snap];
+        headTilt = [0, 0.2, 0, -0.2][snap];
+        break;
+      case 4: // Wave
+        armRAngle = Math.sin(t * 6) * 1.5;
+        armLAngle = Math.sin(t * 3) * 0.5;
+        hipShift = Math.sin(t * 3) * 4 * s;
+        legSpread = Math.sin(t * 3) * 3 * s;
+        headTilt = Math.sin(t * 2) * 0.1;
+        break;
+    }
+  }
+
+  ctx.save();
+  ctx.translate(gx + hipShift, gy + bounce + jumpOffset);
+  ctx.rotate(bodyTilt);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(-8*s, 22*p - jumpOffset/2, 16*s, 3*s);
+
+  // Legs
+  drawPixelRect(-3*p - legSpread, 12*p, p*2.5, p*6, COL.pants);
+  drawPixelRect(-3*p - legSpread, 18*p, p*3, p*2, COL.shoes);
+  drawPixelRect(0.5*p + legSpread, 12*p, p*2.5, p*6, COL.pants);
+  drawPixelRect(0.5*p + legSpread, 18*p, p*3, p*2, COL.shoes);
+
+  // Body / Jacket (long, reaching knees)
+  drawPixelRect(-4*p, -2*p, p*8, p*16, COL.jacket);
+  drawPixelRect(-3.5*p, -1*p, p, p*10, COL.jacketHL);
+  drawPixelRect(2.5*p, -1*p, p, p*10, COL.jacketHL);
+  // Shirt peek
+  drawPixelRect(-1*p, -1*p, p*2, p*4, COL.shirt);
+
+  // Left arm
+  ctx.save();
+  ctx.translate(-4*p, 0);
+  ctx.rotate(armLAngle);
+  drawPixelRect(-p*2, 0, p*2, p*8, COL.jacket);
+  drawPixelRect(-p*2, 8*p, p*2, p*2, COL.skin);
+  ctx.restore();
+
+  // Right arm
+  ctx.save();
+  ctx.translate(4*p, 0);
+  ctx.rotate(armRAngle);
+  drawPixelRect(0, 0, p*2, p*8, COL.jacket);
+  drawPixelRect(0, 8*p, p*2, p*2, COL.skin);
+  ctx.restore();
+
+  // Head
+  ctx.save();
+  ctx.rotate(headTilt);
+
+  // Hair back
+  drawPixelRect(-5*p, -11*p, p*10, p*10, COL.hair);
+  // Face
+  drawPixelRect(-3.5*p, -9*p, p*7, p*7, COL.skin);
+  // Hair bangs
+  drawPixelRect(-5*p, -11*p, p*10, p*3, COL.hair);
+  drawPixelRect(-5*p, -8*p, p*2, p*3, COL.hair);
+  drawPixelRect(3*p, -8*p, p*2, p*3, COL.hair);
+  // Hair sides (long)
+  drawPixelRect(-5*p, -8*p, p*1.5, p*14, COL.hair);
+  drawPixelRect(3.5*p, -8*p, p*1.5, p*14, COL.hair);
+
+  // Eyes
+  drawPixelRect(-2*p, -6.5*p, p*1.5, p*2, '#ffffff');
+  drawPixelRect(0.5*p, -6.5*p, p*1.5, p*2, '#ffffff');
+  drawPixelRect(-1.5*p, -6*p, p, p*1.2, '#331100');
+  drawPixelRect(1*p, -6*p, p, p*1.2, '#331100');
+
+  // Blush
+  ctx.globalAlpha = 0.3;
+  drawPixelRect(-3*p, -4.5*p, p*1.5, p, '#ff6688');
+  drawPixelRect(1.5*p, -4.5*p, p*1.5, p, '#ff6688');
+  ctx.globalAlpha = 1;
+
+  // Mouth
+  if (!idle) {
+    drawPixelRect(-1*p, -3.5*p, p*2, p*0.8, '#cc4455');
+  } else {
+    drawPixelRect(-0.5*p, -3.5*p, p, p*0.6, '#cc4455');
+  }
+
+  ctx.restore(); // head
+  ctx.restore(); // main
+
+  // Dance label
+  if (!idle) {
+    const danceNames = ['DISCO','JUMP','SPIN','ROBOT','WAVE'];
+    ctx.font = `${Math.floor(8*scale)}px 'Press Start 2P', monospace`;
+    ctx.fillStyle = COL.neon[d];
+    ctx.shadowColor = COL.neon[d];
+    ctx.shadowBlur = 8 * scale;
+    ctx.textAlign = 'center';
+    ctx.fillText(danceNames[d] + '!', gx + hipShift, gy - 50*scale + jumpOffset);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left';
+  }
+
+  // Tap hint
+  if (idle && frameCount % 120 < 80) {
+    const alpha = Math.sin(frameCount * 0.08) * 0.3 + 0.4;
+    ctx.globalAlpha = alpha;
+    ctx.font = `${Math.floor(7*scale)}px 'Press Start 2P', monospace`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText('TAP ME!', gx, gy - 48*scale);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+}
+
+// --- MINION ---
+function drawMinion(m, index) {
+  const s = scale * 1.3;
+  const p = 3 * s;
+  const mx = m.x * W;
+  const my = m.y * H;
+
+  m.jumpT += 0.06;
+  const jump = Math.abs(Math.sin(m.jumpT)) * 12 * s;
+  const squash = 1 + Math.sin(m.jumpT) * 0.1;
+
+  ctx.save();
+  ctx.translate(mx, my - jump);
+  ctx.scale(m.dir, 1);
+  ctx.scale(1, 1/squash);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(-4*p, 12*p + jump/2, 8*p, 2*s);
+
+  // Body
+  drawPixelRect(-3*p, -4*p, p*6, p*12, COL.minion);
+  drawPixelRect(-2*p, -5*p, p*4, p, COL.minion);
+  drawPixelRect(-2*p, 8*p, p*4, p, COL.minion);
+
+  // Overalls
+  drawPixelRect(-3*p, 4*p, p*6, p*4, COL.minionPants);
+  drawPixelRect(-1*p, 2*p, p*2, p*2, COL.minionPants);
+  drawPixelRect(-2*p, 2*p, p, p*3, COL.minionPants);
+  drawPixelRect(1*p, 2*p, p, p*3, COL.minionPants);
+
+  // Goggle strap
+  drawPixelRect(-3.5*p, -2*p, p*7, p, COL.minionGoggles);
+  // Goggle
+  drawPixelRect(-2*p, -3*p, p*4, p*3, COL.minionGoggles);
+  // Eye white
+  drawPixelRect(-1.5*p, -2.5*p, p*3, p*2, COL.minionEye);
+  // Pupil
+  const lookX = Math.sin(frameCount * 0.03 + index) * 0.5;
+  drawPixelRect(-0.5*p + lookX*p, -2*p, p*1.2, p*1.2, COL.minionPupil);
+
+  // Mouth
+  const mouthOpen = Math.sin(frameCount * 0.1 + index * 2) > 0.3;
+  if (mouthOpen) {
+    drawPixelRect(-1*p, 1*p, p*2, p, '#333');
+    drawPixelRect(-0.5*p, 1*p, p, p*0.5, '#ffffff');
+  } else {
+    drawPixelRect(-1*p, 1*p, p*2, p*0.5, '#333');
+  }
+
+  // Arms (waving)
+  const armWave = Math.sin(frameCount * 0.08 + index * 1.5);
+  ctx.save();
+  ctx.translate(-3*p, 0);
+  ctx.rotate(armWave * 0.6 - 0.3);
+  drawPixelRect(-p*2, -p, p*2, p*4, COL.minion);
+  drawPixelRect(-p*2, 3*p, p*2, p, '#333');
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(3*p, 0);
+  ctx.rotate(-armWave * 0.6 + 0.3);
+  drawPixelRect(0, -p, p*2, p*4, COL.minion);
+  drawPixelRect(0, 3*p, p*2, p, '#333');
+  ctx.restore();
+
+  // Legs
+  const legAnim = Math.sin(frameCount * 0.08 + index);
+  drawPixelRect(-2*p + legAnim*p, 8*p, p*2, p*3, COL.minionPants);
+  drawPixelRect(0 - legAnim*p, 8*p, p*2, p*3, COL.minionPants);
+  drawPixelRect(-2*p + legAnim*p, 11*p, p*2.5, p, '#333');
+  drawPixelRect(0 - legAnim*p, 11*p, p*2.5, p, '#333');
+
+  // Hair strands on top
+  drawPixelRect(-p*0.5, -5.5*p, p*0.5, p*2, COL.hair);
+  drawPixelRect(p*0.3, -6*p, p*0.5, p*2.5, COL.hair);
+
+  ctx.restore();
+
+  // Speech bubble
+  const speechIdx = index % speeches.length;
+  const showSpeech = Math.sin(frameCount * 0.02 + index * 1.5) > 0.2;
+  if (showSpeech) {
+    const bx = mx + m.dir * 20 * s;
+    const by = my - jump - 35 * s;
+    ctx.font = `${Math.floor(5*scale)}px 'Press Start 2P', monospace`;
+    const text = speeches[speechIdx];
+    const tw = ctx.measureText(text).width;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.9;
+    const pad = 4*scale;
+    ctx.fillRect(bx - tw/2 - pad, by - 8*scale, tw + pad*2, 14*scale);
+    ctx.fillRect(bx - 2*scale, by + 6*scale, 4*scale, 4*scale);
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#111111';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, bx, by + 2*scale);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawConfetti() {
+  confetti.forEach(c => {
+    c.x += c.vx;
+    c.y += c.vy;
+    c.rot += c.rotV;
+    if (c.y > 1.1) { c.y = -0.05; c.x = Math.random(); }
+    if (c.x < -0.05) c.x = 1.05;
+    if (c.x > 1.05) c.x = -0.05;
+
+    ctx.save();
+    ctx.translate(c.x * W, c.y * H);
+    ctx.rotate(c.rot);
+    ctx.fillStyle = c.color;
+    ctx.globalAlpha = 0.8;
+    ctx.fillRect(-c.size/2, -c.size/2, c.size * scale, c.size * scale * 0.6);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+}
+
+// Cherry blossom petals
+const petals = Array.from({length: 20}, () => ({
+  x: Math.random(), y: Math.random() * 0.5 + 0.3,
+  vx: Math.random() * 0.001 + 0.0005,
+  vy: Math.random() * 0.001 + 0.0003,
+  size: Math.random() * 2 + 1.5,
+  wobble: Math.random() * Math.PI * 2
+}));
+
+function drawPetals() {
+  petals.forEach(p => {
+    p.x += p.vx + Math.sin(frameCount * 0.02 + p.wobble) * 0.0005;
+    p.y += p.vy;
+    if (p.x > 1.1) p.x = -0.05;
+    if (p.y > 1.0) { p.y = 0.3; p.x = Math.random(); }
+
+    ctx.fillStyle = '#ffb7c5';
+    ctx.globalAlpha = 0.6;
+    const sz = p.size * scale;
+    ctx.fillRect(p.x * W, p.y * H, sz * 2, sz);
+    ctx.fillRect(p.x * W + sz * 0.5, p.y * H - sz * 0.5, sz, sz * 2);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function drawTitle() {
+  titleGlow += 0.03;
+  const glowVal = Math.sin(titleGlow) * 0.3 + 0.7;
+
+  const fontSize = Math.floor(14 * scale);
+  ctx.font = `${fontSize}px 'Press Start 2P', monospace`;
+  ctx.textAlign = 'center';
+
+  const text1 = 'HAPPY';
+  const text2 = 'BIRTHDAY';
+  const colors = ['#ff3366','#ff9933','#ffff00','#00ff99','#00ffff','#ff00ff','#ff3366','#ff9933'];
+
+  for (let pass = 0; pass < 2; pass++) {
+    const text = pass === 0 ? text1 : text2;
+    const yOff = pass * fontSize * 1.5;
+    const totalW = ctx.measureText(text).width;
+    let cx = W/2 - totalW/2;
+
+    for (let i = 0; i < text.length; i++) {
+      const ci = (i + Math.floor(frameCount/10)) % colors.length;
+      ctx.fillStyle = colors[ci];
+      ctx.shadowColor = colors[ci];
+      ctx.shadowBlur = 10 * scale * glowVal;
+      const charW = ctx.measureText(text[i]).width;
+      const charBounce = Math.sin(frameCount * 0.08 + i * 0.5) * 3 * scale;
+      ctx.fillText(text[i], cx + charW/2, H * 0.08 + yOff + charBounce);
+      cx += charW;
+    }
+  }
+
+  // Name
+  const nameSize = Math.floor(18 * scale);
+  ctx.font = `${nameSize}px 'Press Start 2P', monospace`;
+  const nameBounce = Math.sin(frameCount * 0.04) * 4 * scale;
+  ctx.fillStyle = '#ffff00';
+  ctx.shadowColor = '#ffff00';
+  ctx.shadowBlur = 15 * scale * glowVal;
+  ctx.fillText('LIODA!', W/2, H * 0.08 + fontSize * 3.2 + nameBounce);
+
+  ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+}
+
+function drawHPBar() {
+  const bx = W * 0.05;
+  const by = H * 0.92;
+  const bw = W * 0.35;
+  const bh = 12 * scale;
+
+  ctx.font = `${Math.floor(5*scale)}px 'Press Start 2P', monospace`;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('HAPPINESS', bx, by - 4*scale);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(bx + 2*scale, by + 2*scale, bw - 4*scale, bh - 4*scale);
+
+  const fill = (Math.sin(frameCount * 0.02) * 0.1 + 0.9);
+  const grad = ctx.createLinearGradient(bx, 0, bx + bw * fill, 0);
+  grad.addColorStop(0, '#00ff00');
+  grad.addColorStop(1, '#ffff00');
+  ctx.fillStyle = grad;
+  ctx.fillRect(bx + 2*scale, by + 2*scale, (bw - 4*scale) * fill, bh - 4*scale);
+
+  ctx.fillStyle = '#ffff00';
+  ctx.fillText('LV MAX', bx + bw + 8*scale, by + bh - 2*scale);
+}
+
+function drawScore() {
+  ctx.font = `${Math.floor(5*scale)}px 'Press Start 2P', monospace`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE: 999999', W * 0.95, H * 0.93);
+  ctx.fillText('STAGE: TOKYO', W * 0.95, H * 0.96);
+  ctx.textAlign = 'left';
+}
+
+// --- MAIN LOOP ---
+function update() {
+  if (girl.dance >= 0) {
+    girl.danceTimer++;
+    girl.danceFrame++;
+    if (girl.danceTimer >= girl.danceDuration) {
+      girl.dance = -1;
+      girl.danceTimer = 0;
+      girl.danceFrame = 0;
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawSky();
+  drawStars();
+  drawTokyoTower();
+  drawBuildings();
+  drawNeonSigns();
+  drawGround();
+  drawPetals();
+
+  drawMinion(minions[0], 0);
+  drawMinion(minions[1], 1);
+  drawGirl();
+  drawMinion(minions[2], 2);
+  drawMinion(minions[3], 3);
+
+  drawConfetti();
+  drawTitle();
+  drawHPBar();
+  drawScore();
+}
+
+function loop() {
+  frameCount++;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+document.fonts.ready.then(() => loop());
+</script>
 </body>
 </html>
