@@ -70,32 +70,20 @@ const stars = Array.from({length: 80}, () => ({
   x: Math.random(), y: Math.random() * 0.4, s: Math.random() * 2 + 1, b: Math.random()
 }));
 
-// --- BUILDINGS ---
-const buildings = [];
-for (let i = 0; i < 14; i++) {
-  buildings.push({
-    x: i / 14 - 0.03,
-    w: 0.06 + Math.random() * 0.06,
-    h: 0.15 + Math.random() * 0.25,
-    color: COL.building[Math.floor(Math.random() * COL.building.length)],
-    windows: Array.from({length: 8 + Math.floor(Math.random()*12)}, () => ({
-      rx: Math.random(), ry: Math.random(),
-      color: COL.window[Math.floor(Math.random() * COL.window.length)],
-      on: Math.random() > 0.3,
-      blink: Math.random()
-    })),
-    hasSign: Math.random() > 0.5,
-    signColor: COL.neon[Math.floor(Math.random() * COL.neon.length)],
-    antenna: Math.random() > 0.6
-  });
-}
+// (buildings removed — disco venue now)
 
-// --- NEON SIGNS ---
-const neonSigns = [
-  { x: 0.08, y: 0.38, text: 'GAME', color: '#ff00ff' },
-  { x: 0.72, y: 0.32, text: 'KARAOKE', color: '#00ffff' },
-  { x: 0.4, y: 0.28, text: 'TOKYO', color: '#ff3366' },
-];
+// --- DISCO FLOOR TILES ---
+const discoTiles = [];
+const tileRows = 8, tileCols = 10;
+for (let r = 0; r < tileRows; r++) {
+  for (let c = 0; c < tileCols; c++) {
+    discoTiles.push({
+      r, c,
+      color: COL.neon[Math.floor(Math.random() * COL.neon.length)],
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+}
 
 // --- CONFETTI ---
 const confetti = Array.from({length: 60}, () => ({
@@ -149,7 +137,10 @@ function handleTap(e) {
   const dy = e.clientY - gy;
   const dist = Math.sqrt(dx*dx + dy*dy);
   if (dist < 70 * scale) {
-    girl.dance = (girl.dance + 1) % 5;
+    // Pick a random dance different from the current one
+    let next;
+    do { next = Math.floor(Math.random() * 5); } while (next === girl.dance);
+    girl.dance = next;
     girl.danceFrame = 0;
     girl.danceTimer = 0;
   }
@@ -186,117 +177,152 @@ function drawStars() {
   ctx.globalAlpha = 1;
 }
 
-function drawTokyoTower() {
-  const tx = W * 0.55;
-  const ty = H * 0.55;
-  const s = scale;
+function drawDiscoBall() {
+  const bx = W * 0.5;
+  const by = H * 0.18;
+  const r = 18 * scale;
 
-  ctx.fillStyle = '#0f0f3a';
+  // String
+  ctx.strokeStyle = '#888888';
+  ctx.lineWidth = 2 * scale;
   ctx.beginPath();
-  ctx.moveTo(tx - 15*s, ty);
-  ctx.lineTo(tx - 4*s, ty - 120*s);
-  ctx.lineTo(tx + 4*s, ty - 120*s);
-  ctx.lineTo(tx + 15*s, ty);
+  ctx.moveTo(bx, 0);
+  ctx.lineTo(bx, by - r);
+  ctx.stroke();
+
+  // Ball base
+  const grad = ctx.createRadialGradient(bx - r*0.3, by - r*0.3, r*0.1, bx, by, r);
+  grad.addColorStop(0, '#dddddd');
+  grad.addColorStop(0.5, '#999999');
+  grad.addColorStop(1, '#444444');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(bx, by, r, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillRect(tx - 1*s, ty - 140*s, 2*s, 20*s);
+  // Mirror facets
+  for (let row = -3; row <= 3; row++) {
+    for (let col = -4; col <= 4; col++) {
+      const angle = col * 0.35 + frameCount * 0.02;
+      const yOff = row * r * 0.22;
+      const xOff = Math.cos(angle) * r * 0.7 * Math.cos(yOff / r);
+      const fx = bx + xOff;
+      const fy = by + yOff;
+      const distSq = (fx - bx) * (fx - bx) + (fy - by) * (fy - by);
+      if (distSq < r * r * 0.85) {
+        const flash = Math.sin(frameCount * 0.08 + row + col * 2) * 0.5 + 0.5;
+        ctx.fillStyle = `rgba(255,255,255,${flash * 0.7})`;
+        ctx.fillRect(fx - 2*scale, fy - 2*scale, 4*scale, 3*scale);
+      }
+    }
+  }
 
-  ctx.fillStyle = '#1a1a50';
-  ctx.fillRect(tx - 10*s, ty - 80*s, 20*s, 4*s);
-  ctx.fillRect(tx - 7*s, ty - 50*s, 14*s, 3*s);
-
-  const blink = Math.sin(frameCount * 0.1) > 0;
-  ctx.fillStyle = blink ? '#ff3333' : '#661111';
-  ctx.fillRect(tx - 2*s, ty - 142*s, 4*s, 3*s);
+  // Light rays from disco ball
+  for (let i = 0; i < 8; i++) {
+    const a = frameCount * 0.03 + i * Math.PI / 4;
+    const rayLen = 80 * scale + Math.sin(frameCount * 0.05 + i) * 30 * scale;
+    const rx = bx + Math.cos(a) * rayLen;
+    const ry = by + Math.sin(a) * rayLen;
+    ctx.strokeStyle = COL.neon[i % COL.neon.length];
+    ctx.globalAlpha = 0.15 + Math.sin(frameCount * 0.06 + i) * 0.1;
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(rx, ry);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
 }
 
-function drawBuildings() {
-  buildings.forEach(b => {
-    const bx = b.x * W;
-    const bw = b.w * W;
-    const bh = b.h * H;
-    const by = H * 0.55 - bh;
+function drawWalls() {
+  // Dark walls behind the dance floor with subtle neon accents
+  const gy = H * 0.55;
 
-    ctx.fillStyle = b.color;
-    ctx.fillRect(bx, by, bw, bh + H * 0.05);
+  // Back wall
+  const wallGrad = ctx.createLinearGradient(0, H * 0.2, 0, gy);
+  wallGrad.addColorStop(0, '#0d0d2e');
+  wallGrad.addColorStop(1, '#1a1a3e');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(0, H * 0.2, W, gy - H * 0.2);
 
-    if (b.antenna) {
-      ctx.fillStyle = '#333366';
-      ctx.fillRect(bx + bw/2 - 1*scale, by - 15*scale, 2*scale, 15*scale);
-      const blinkOn = Math.sin(frameCount * 0.08) > 0;
-      ctx.fillStyle = blinkOn ? '#ff0000' : '#660000';
-      ctx.fillRect(bx + bw/2 - 2*scale, by - 17*scale, 4*scale, 3*scale);
-    }
-
-    b.windows.forEach(win => {
-      if (!win.on) return;
-      const flicker = Math.sin(frameCount * 0.02 + win.blink * 20) > -0.8;
-      if (!flicker) return;
-      const wx = bx + win.rx * (bw - 6*scale) + 2*scale;
-      const wy = by + win.ry * (bh - 6*scale) + 2*scale;
-      ctx.fillStyle = win.color;
-      ctx.globalAlpha = 0.7;
-      ctx.fillRect(wx, wy, 4*scale, 4*scale);
-      ctx.globalAlpha = 1;
-    });
-
-    if (b.hasSign) {
-      const glow = Math.sin(frameCount * 0.06 + bx) * 0.3 + 0.7;
-      ctx.globalAlpha = glow;
-      ctx.fillStyle = b.signColor;
-      ctx.fillRect(bx + 2*scale, by + bh * 0.3, bw - 4*scale, 5*scale);
-      ctx.globalAlpha = 1;
-    }
-  });
-}
-
-function drawNeonSigns() {
-  ctx.font = `${Math.floor(8 * scale)}px 'Press Start 2P', monospace`;
-  neonSigns.forEach((s, i) => {
-    const glow = Math.sin(frameCount * 0.07 + i * 2) * 0.4 + 0.6;
+  // Neon strips on walls
+  const strips = [0.25, 0.45, 0.65];
+  strips.forEach((sy, i) => {
+    const glow = Math.sin(frameCount * 0.04 + i * 2) * 0.3 + 0.5;
     ctx.globalAlpha = glow;
-    ctx.fillStyle = s.color;
-    ctx.shadowColor = s.color;
-    ctx.shadowBlur = 15 * scale;
-    ctx.fillText(s.text, s.x * W, s.y * H);
+    ctx.fillStyle = COL.neon[i % COL.neon.length];
+    ctx.shadowColor = COL.neon[i % COL.neon.length];
+    ctx.shadowBlur = 12 * scale;
+    ctx.fillRect(0, H * sy, W, 2 * scale);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
   });
+
+  // Speaker stacks on sides
+  for (let side = 0; side < 2; side++) {
+    const sx = side === 0 ? W * 0.02 : W * 0.88;
+    const sw = W * 0.1;
+    for (let s = 0; s < 3; s++) {
+      const sy = H * 0.3 + s * 28 * scale;
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(sx, sy, sw, 24 * scale);
+      ctx.fillStyle = '#222222';
+      ctx.fillRect(sx + 2*scale, sy + 2*scale, sw - 4*scale, 20*scale);
+      // Speaker cone
+      const pulse = Math.sin(frameCount * 0.1 + s) * 2 * scale;
+      ctx.fillStyle = '#333333';
+      ctx.beginPath();
+      ctx.arc(sx + sw/2, sy + 12*scale, (8 + pulse)*scale, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#444444';
+      ctx.beginPath();
+      ctx.arc(sx + sw/2, sy + 12*scale, 4*scale, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
 }
 
 function drawGround() {
   const gy = H * 0.55;
-  const grad = ctx.createLinearGradient(0, gy, 0, H);
-  grad.addColorStop(0, '#1a1a3e');
-  grad.addColorStop(0.3, '#141432');
-  grad.addColorStop(1, '#0a0a20');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, gy, W, H - gy);
+  const floorH = H - gy;
 
-  // Retro grid
-  ctx.strokeStyle = '#222255';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 12; i++) {
-    const ly = gy + (H - gy) * (i / 12);
-    ctx.beginPath();
-    ctx.moveTo(0, ly);
-    ctx.lineTo(W, ly);
-    ctx.stroke();
-  }
-  for (let i = 0; i < 16; i++) {
-    const lx = (i / 16) * W;
-    ctx.beginPath();
-    ctx.moveTo(lx, gy);
-    ctx.lineTo(W/2 + (lx - W/2) * 3, H);
-    ctx.stroke();
-  }
+  // Dark base
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, gy, W, floorH);
 
-  // Crosswalk
-  ctx.fillStyle = '#ffffff';
-  ctx.globalAlpha = 0.15;
-  for (let i = 0; i < 8; i++) {
-    ctx.fillRect(W * 0.3 + i * 12 * scale, gy, 8 * scale, 30 * scale);
-  }
+  // Disco floor tiles
+  const tw = W / tileCols;
+  const th = floorH / tileRows;
+  discoTiles.forEach(tile => {
+    const tx = tile.c * tw;
+    const ty = gy + tile.r * th;
+
+    // Cycle colors over time
+    const brightness = Math.sin(frameCount * 0.06 + tile.phase) * 0.4 + 0.4;
+    const colorIdx = Math.floor((frameCount * 0.02 + tile.phase) / Math.PI) % COL.neon.length;
+    const col = COL.neon[(tile.c + tile.r + colorIdx) % COL.neon.length];
+
+    ctx.globalAlpha = brightness;
+    ctx.fillStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 6 * scale;
+    ctx.fillRect(tx + 1, ty + 1, tw - 2, th - 2);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
+    // Tile border
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tx, ty, tw, th);
+  });
+
+  // Glossy reflection overlay
+  ctx.globalAlpha = 0.05;
+  const reflGrad = ctx.createLinearGradient(0, gy, 0, gy + floorH);
+  reflGrad.addColorStop(0, '#ffffff');
+  reflGrad.addColorStop(0.5, 'transparent');
+  ctx.fillStyle = reflGrad;
+  ctx.fillRect(0, gy, W, floorH);
   ctx.globalAlpha = 1;
 }
 
@@ -581,28 +607,26 @@ function drawConfetti() {
   });
 }
 
-// Cherry blossom petals
-const petals = Array.from({length: 20}, () => ({
-  x: Math.random(), y: Math.random() * 0.5 + 0.3,
-  vx: Math.random() * 0.001 + 0.0005,
-  vy: Math.random() * 0.001 + 0.0003,
-  size: Math.random() * 2 + 1.5,
-  wobble: Math.random() * Math.PI * 2
-}));
-
-function drawPetals() {
-  petals.forEach(p => {
-    p.x += p.vx + Math.sin(frameCount * 0.02 + p.wobble) * 0.0005;
-    p.y += p.vy;
-    if (p.x > 1.1) p.x = -0.05;
-    if (p.y > 1.0) { p.y = 0.3; p.x = Math.random(); }
-
-    ctx.fillStyle = '#ffb7c5';
-    ctx.globalAlpha = 0.6;
-    const sz = p.size * scale;
-    ctx.fillRect(p.x * W, p.y * H, sz * 2, sz);
-    ctx.fillRect(p.x * W + sz * 0.5, p.y * H - sz * 0.5, sz, sz * 2);
-    ctx.globalAlpha = 1;
+// Spotlight beams on the dance floor
+function drawSpotlights() {
+  const spots = [
+    { x: 0.2, color: '#ff00ff' },
+    { x: 0.5, color: '#00ffff' },
+    { x: 0.8, color: '#ff3366' },
+  ];
+  spots.forEach((sp, i) => {
+    const angle = Math.sin(frameCount * 0.02 + i * 2) * 0.15;
+    const sx = sp.x * W + Math.sin(frameCount * 0.015 + i) * W * 0.1;
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = sp.color;
+    ctx.beginPath();
+    ctx.moveTo(sx - 5*scale, 0);
+    ctx.lineTo(sx + 5*scale, 0);
+    ctx.lineTo(sx + 80*scale + angle * 200, H);
+    ctx.lineTo(sx - 80*scale + angle * 200, H);
+    ctx.fill();
+    ctx.restore();
   });
 }
 
@@ -610,7 +634,7 @@ function drawTitle() {
   titleGlow += 0.03;
   const glowVal = Math.sin(titleGlow) * 0.3 + 0.7;
 
-  const fontSize = Math.floor(14 * scale);
+  const fontSize = Math.floor(22 * scale);
   ctx.font = `${fontSize}px 'Press Start 2P', monospace`;
   ctx.textAlign = 'center';
 
@@ -620,7 +644,7 @@ function drawTitle() {
 
   for (let pass = 0; pass < 2; pass++) {
     const text = pass === 0 ? text1 : text2;
-    const yOff = pass * fontSize * 1.5;
+    const yOff = pass * fontSize * 1.4;
     const totalW = ctx.measureText(text).width;
     let cx = W/2 - totalW/2;
 
@@ -628,61 +652,37 @@ function drawTitle() {
       const ci = (i + Math.floor(frameCount/10)) % colors.length;
       ctx.fillStyle = colors[ci];
       ctx.shadowColor = colors[ci];
-      ctx.shadowBlur = 10 * scale * glowVal;
+      ctx.shadowBlur = 12 * scale * glowVal;
       const charW = ctx.measureText(text[i]).width;
-      const charBounce = Math.sin(frameCount * 0.08 + i * 0.5) * 3 * scale;
-      ctx.fillText(text[i], cx + charW/2, H * 0.08 + yOff + charBounce);
+      const charBounce = Math.sin(frameCount * 0.08 + i * 0.5) * 4 * scale;
+      ctx.fillText(text[i], cx + charW/2, H * 0.07 + yOff + charBounce);
       cx += charW;
     }
   }
 
   // Name
-  const nameSize = Math.floor(18 * scale);
+  const nameSize = Math.floor(26 * scale);
   ctx.font = `${nameSize}px 'Press Start 2P', monospace`;
   const nameBounce = Math.sin(frameCount * 0.04) * 4 * scale;
   ctx.fillStyle = '#ffff00';
   ctx.shadowColor = '#ffff00';
-  ctx.shadowBlur = 15 * scale * glowVal;
-  ctx.fillText('LIODA!', W/2, H * 0.08 + fontSize * 3.2 + nameBounce);
+  ctx.shadowBlur = 18 * scale * glowVal;
+  ctx.fillText('LIODA!', W/2, H * 0.07 + fontSize * 3 + nameBounce);
+
+  // Subtitle
+  const subSize = Math.floor(10 * scale);
+  ctx.font = `${subSize}px 'Press Start 2P', monospace`;
+  const subBounce = Math.sin(frameCount * 0.06) * 2 * scale;
+  const subGlow = Math.sin(frameCount * 0.05) * 0.3 + 0.7;
+  ctx.fillStyle = '#ff00ff';
+  ctx.shadowColor = '#ff00ff';
+  ctx.shadowBlur = 10 * scale * subGlow;
+  ctx.fillText("DANCE IT'S YOUR BIRTHDAY", W/2, H * 0.07 + fontSize * 3 + nameSize * 1.2 + nameBounce + subBounce);
 
   ctx.shadowBlur = 0;
   ctx.textAlign = 'left';
 }
 
-function drawHPBar() {
-  const bx = W * 0.05;
-  const by = H * 0.92;
-  const bw = W * 0.35;
-  const bh = 12 * scale;
-
-  ctx.font = `${Math.floor(5*scale)}px 'Press Start 2P', monospace`;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('HAPPINESS', bx, by - 4*scale);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(bx, by, bw, bh);
-  ctx.fillStyle = '#111111';
-  ctx.fillRect(bx + 2*scale, by + 2*scale, bw - 4*scale, bh - 4*scale);
-
-  const fill = (Math.sin(frameCount * 0.02) * 0.1 + 0.9);
-  const grad = ctx.createLinearGradient(bx, 0, bx + bw * fill, 0);
-  grad.addColorStop(0, '#00ff00');
-  grad.addColorStop(1, '#ffff00');
-  ctx.fillStyle = grad;
-  ctx.fillRect(bx + 2*scale, by + 2*scale, (bw - 4*scale) * fill, bh - 4*scale);
-
-  ctx.fillStyle = '#ffff00';
-  ctx.fillText('LV MAX', bx + bw + 8*scale, by + bh - 2*scale);
-}
-
-function drawScore() {
-  ctx.font = `${Math.floor(5*scale)}px 'Press Start 2P', monospace`;
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'right';
-  ctx.fillText('SCORE: 999999', W * 0.95, H * 0.93);
-  ctx.fillText('STAGE: TOKYO', W * 0.95, H * 0.96);
-  ctx.textAlign = 'left';
-}
 
 // --- MAIN LOOP ---
 function update() {
@@ -701,11 +701,10 @@ function draw() {
   ctx.clearRect(0, 0, W, H);
   drawSky();
   drawStars();
-  drawTokyoTower();
-  drawBuildings();
-  drawNeonSigns();
+  drawWalls();
+  drawDiscoBall();
   drawGround();
-  drawPetals();
+  drawSpotlights();
 
   drawMinion(minions[0], 0);
   drawMinion(minions[1], 1);
@@ -715,8 +714,6 @@ function draw() {
 
   drawConfetti();
   drawTitle();
-  drawHPBar();
-  drawScore();
 }
 
 function loop() {
