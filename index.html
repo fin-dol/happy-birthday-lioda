@@ -373,12 +373,13 @@ function drawGirl() {
         armRAngle = [0.5, 0, -1, 0][snap];
         headTilt = [0, 0.2, 0, -0.2][snap];
         break;
-      case 4: // Wave
-        armRAngle = Math.sin(t * 6) * 1.5;
-        armLAngle = Math.sin(t * 3) * 0.5;
-        hipShift = Math.sin(t * 3) * 4 * s;
-        legSpread = Math.sin(t * 3) * 3 * s;
-        headTilt = Math.sin(t * 2) * 0.1;
+      case 4: // Booty shake with hands up to the right
+        armLAngle = -2.2 + Math.sin(t * 5) * 0.3;
+        armRAngle = -2.5 + Math.sin(t * 5 + 0.5) * 0.3;
+        hipShift = Math.sin(t * 8) * 8 * s;
+        bodyTilt = 0.1 + Math.sin(t * 8) * 0.08;
+        legSpread = 3 * s + Math.abs(Math.sin(t * 8)) * 2 * s;
+        headTilt = Math.sin(t * 4) * 0.12;
         break;
     }
   }
@@ -460,7 +461,7 @@ function drawGirl() {
 
   // Dance label
   if (!idle) {
-    const danceNames = ['DISCO','JUMP','SPIN','ROBOT','WAVE'];
+    const danceNames = ['DISCO','JUMP','SPIN','ROBOT','BOOTY'];
     ctx.font = `${Math.floor(8*scale)}px 'Press Start 2P', monospace`;
     ctx.fillStyle = COL.neon[d];
     ctx.shadowColor = COL.neon[d];
@@ -670,14 +671,14 @@ function drawTitle() {
   ctx.fillText('LIODA!', W/2, H * 0.07 + fontSize * 3 + nameBounce);
 
   // Subtitle
-  const subSize = Math.floor(10 * scale);
+  const subSize = Math.floor(14 * scale);
   ctx.font = `${subSize}px 'Press Start 2P', monospace`;
   const subBounce = Math.sin(frameCount * 0.06) * 2 * scale;
   const subGlow = Math.sin(frameCount * 0.05) * 0.3 + 0.7;
   ctx.fillStyle = '#ff00ff';
   ctx.shadowColor = '#ff00ff';
   ctx.shadowBlur = 10 * scale * subGlow;
-  ctx.fillText("DANCE IT'S YOUR BIRTHDAY", W/2, H * 0.07 + fontSize * 3 + nameSize * 1.2 + nameBounce + subBounce);
+  ctx.fillText("DANCE, IT'S YOUR BIRTHDAY!!!", W/2, H * 0.07 + fontSize * 3 + nameSize * 1.2 + nameBounce + subBounce);
 
   ctx.shadowBlur = 0;
   ctx.textAlign = 'left';
