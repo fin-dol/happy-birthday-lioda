@@ -55,9 +55,9 @@ const COL = {
   hair: '#1a1a1a',
   jacket: '#111111',
   jacketHL: '#222222',
-  shirt: '#ff3366',
+  shirt: '#111111',
   pants: '#222244',
-  shoes: '#111111',
+  shoes: '#8B4513',
   minion: '#ffe135',
   minionEye: '#ffffff',
   minionPupil: '#3b2507',
@@ -404,6 +404,10 @@ function drawGirl() {
   drawPixelRect(2.5*p, -1*p, p, p*10, COL.jacketHL);
   // Shirt peek
   drawPixelRect(-1*p, -1*p, p*2, p*4, COL.shirt);
+  // Buttons
+  drawPixelRect(-0.25*p, 1*p, p*0.5, p*0.5, '#333333');
+  drawPixelRect(-0.25*p, 3*p, p*0.5, p*0.5, '#333333');
+  drawPixelRect(-0.25*p, 5*p, p*0.5, p*0.5, '#333333');
 
   // Left arm
   ctx.save();
@@ -461,7 +465,7 @@ function drawGirl() {
 
   // Dance label
   if (!idle) {
-    const danceNames = ['DISCO','JUMP','SPIN','ROBOT','BOOTY'];
+    const danceNames = ['DISCO','JUMP','SPIN','ROBOT','SHAKE BOOTY'];
     ctx.font = `${Math.floor(8*scale)}px 'Press Start 2P', monospace`;
     ctx.fillStyle = COL.neon[d];
     ctx.shadowColor = COL.neon[d];
@@ -671,7 +675,7 @@ function drawTitle() {
   ctx.fillText('LIODA!', W/2, H * 0.07 + fontSize * 3 + nameBounce);
 
   // Subtitle
-  const subSize = Math.floor(14 * scale);
+  const subSize = Math.floor(11 * scale);
   ctx.font = `${subSize}px 'Press Start 2P', monospace`;
   const subBounce = Math.sin(frameCount * 0.06) * 2 * scale;
   const subGlow = Math.sin(frameCount * 0.05) * 0.3 + 0.7;
